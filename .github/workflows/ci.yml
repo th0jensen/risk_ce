@@ -1,0 +1,51 @@
+name: Build and Release risk_ce
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up CEdev Toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget unzip
+          wget https://github.com/CE-Programming/toolchain/releases/latest/download/CEdev-Linux.tar.gz
+          tar -xzf CEdev-Linux.tar.gz
+          echo "$PWD/CEdev/bin" >> $GITHUB_PATH
+
+      - name: Build project
+        run: make
+
+      - name: Upload built program
+        uses: actions/upload-artifact@v3
+        with:
+          name: risk_ce
+          path: bin/*.8xp
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download built program
+        uses: actions/download-artifact@v3
+        with:
+          name: risk_ce
+          path: dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          files: dist/*.8xp
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,14 @@
+CompileFlags:
+  Add:
+    - "-I/Users/thomas/.ce/include"
+    - "-D__ENABLE_LEGACY_BIFROST=1"
+    - "-DPLATFORM_TI84PCE"
+    - "-D__int24=int"
+    - "-D__uint24=unsigned int"
+
+Diagnostics:
+  Suppress:
+    - "unused-variable"
+    - "unknown-pragma"
+    - "unknown-attributes"
+    - "unknown-typename-suggest"
