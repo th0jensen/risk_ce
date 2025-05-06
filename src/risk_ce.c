@@ -3,6 +3,7 @@
  * Risk Battle Calculator for TI-84 Plus CE
  */
 
+#include "../inc/uint24.h"
 #include <graphx.h>
 #include <keypadc.h>
 #include <tice.h>
@@ -10,13 +11,13 @@
 #include <stdbool.h>
 #include <ti/getcsc.h>
 
-#define BG       0   // black
-#define TXT      192 // light gray
-#define ATK_COL  224 // red
-#define DEF_COL  56  // cyan
-#define HLT_COL  128 // highlight gray
-#define BTN_COL  160 // dark red
-#define PIP_COL  255 // white
+#define BG       255
+#define TXT      0
+#define ATK_COL  224
+#define DEF_COL  56
+#define HLT_COL  128
+#define BTN_COL  160
+#define PIP_COL  0
 
 #define MAX_DICE   3
 #define DICE_SZ    40
@@ -25,12 +26,12 @@
 
 typedef enum { SCR_MAIN, SCR_RESULTS, SCR_HELP } Screen;
 
-static void drawDice(int x, int y, int v, int c, bool sel);
-static void drawMain(int atk[], int ac, int def[], int dc, int cur);
-static void drawResults(int al, int dl);
+static void drawDice(uint24_t x, uint24_t y, uint24_t v, uint24_t c, bool sel);
+static void drawMain(uint24_t atk[], uint24_t ac, uint24_t def[], uint24_t dc, uint24_t cur);
+static void drawResults(uint24_t al, uint24_t dl);
 static void drawHelp(void);
-static void sortDesc(int *d, int n);
-static void calcBattle(int *a, int ac, int *d, int dc, int *al, int *dl);
+static void sortDesc(uint24_t *d, uint24_t n);
+static void calcBattle(uint24_t *a, uint24_t ac, uint24_t *d, uint24_t dc, uint24_t *al, uint24_t *dl);
 
 int main(void) {
     gfx_Begin();
@@ -38,17 +39,17 @@ int main(void) {
     gfx_SetDrawBuffer();
     kb_SetMode(MODE_3_CONTINUOUS);
 
-    int atk[MAX_DICE] = {1,1,1}, def[MAX_DICE] = {1,1};
-    int ac = 3, dc = 2;
-    int cur = 0, al = 0, dl = 0;
+    uint24_t atk[MAX_DICE] = {1,1,1}, def[MAX_DICE] = {1,1};
+    uint24_t ac = 3, dc = 2;
+    uint24_t cur = 0, al = 0, dl = 0;
     Screen scr = SCR_MAIN;
     bool redraw = true, done = false;
 
-    uint8_t prevKb[8] = {0}, currKb[8], pressed[8];
+    uint24_t prevKb[8] = {0}, currKb[8], pressed[8];
 
     while (!done) {
         kb_Scan();
-        for (int i = 0; i < 8; i++) {
+        for (uint24_t i = 0; i < 8; i++) {
             currKb[i] = kb_Data[i];
             pressed[i] = currKb[i] & ~prevKb[i];
             prevKb[i] = currKb[i];
@@ -70,12 +71,12 @@ int main(void) {
             }
             // Arrow keys: Group 7
             else if (pressed[7] & kb_Left) {
-                int tot = ac + dc;
+                uint24_t tot = ac + dc;
                 cur = (cur > 0 ? cur - 1 : tot - 1);
                 redraw = true;
             }
             else if (pressed[7] & kb_Right) {
-                int tot = ac + dc;
+                uint24_t tot = ac + dc;
                 cur = (cur < tot - 1 ? cur + 1 : 0);
                 redraw = true;
             }
@@ -96,8 +97,8 @@ int main(void) {
             // 1, 2, 3 are Bit 1
             // 4, 5, 6 are Bit 2
             else {
-                int *arr = (cur < ac ? atk : def);
-                int idx = (cur < ac ? cur : cur - ac);
+                uint24_t *arr = (cur < ac ? atk : def);
+                uint24_t idx = (cur < ac ? cur : cur - ac);
                 bool num_pressed = false;
 
                 if (pressed[3] & kb_1) { arr[idx] = 1; num_pressed = true; }
@@ -145,26 +146,32 @@ int main(void) {
     return 0;
 }
 
-static void drawMain(int atk[], int ac, int def[], int dc, int cur) {
-    char buf[32];
+static uint24_t centered_x(const char * label) { return (W - gfx_GetStringWidth(label)) / 2;  }
+
+static void drawTitle(const char * label) {
     gfx_SetTextScale(2,2);
     gfx_SetTextFGColor(TXT);
     gfx_SetTextBGColor(BG);
-    gfx_PrintStringXY("RISK BATTLE", 90,20);
+    gfx_PrintStringXY(label, centered_x(label), 20);
+}
+
+static void drawMain(uint24_t atk[], uint24_t ac, uint24_t def[], uint24_t dc, uint24_t cur) {
+    char buf[32];
+    drawTitle("RISK BATTLE");
 
     // Attacker
     gfx_SetTextScale(1,1);
     gfx_SetTextFGColor(ATK_COL);
     sprintf(buf,"ATTACKER (%d)",ac);
     gfx_PrintStringXY(buf,10,70);
-    for (int i=0; i<ac; i++)
+    for (uint24_t i=0; i<ac; i++)
         drawDice(20+i*60, 90, atk[i], ATK_COL, cur==i);
 
     // Defender
     gfx_SetTextFGColor(DEF_COL);
     sprintf(buf,"DEFENDER (%d)",dc);
     gfx_PrintStringXY(buf,10,150);
-    for (int i=0; i<dc; i++)
+    for (uint24_t i=0; i<dc; i++)
         drawDice(20+i*60,170, def[i], DEF_COL, cur==(ac+i));
 
     gfx_SetTextScale(1,1);
@@ -175,44 +182,48 @@ static void drawMain(int atk[], int ac, int def[], int dc, int cur) {
 }
 
 
-static void drawResults(int al, int dl) {
+static void drawResults(uint24_t al, uint24_t dl) {
     char buf[40];
-    gfx_SetTextScale(2,2);
-    gfx_SetTextFGColor(TXT);
-    gfx_SetTextBGColor(BG);
-    gfx_PrintStringXY("RESULTS",100,40);
+    drawTitle("RESULT");
 
     gfx_SetTextScale(1,1);
     gfx_SetTextFGColor(ATK_COL);
     sprintf(buf,"Attacker loses %d",al);
-    gfx_PrintStringXY(buf,80,100);
+    gfx_PrintStringXY(buf,centered_x(buf),70);
 
     gfx_SetTextFGColor(DEF_COL);
     sprintf(buf,"Defender loses %d",dl);
-    gfx_PrintStringXY(buf,80,120);
+    gfx_PrintStringXY(buf,centered_x(buf),100);
 
     gfx_SetTextFGColor(TXT);
-    gfx_PrintStringXY("ENTER to cont.",80,180);
+    const char * label = "ENTER to return";
+    gfx_PrintStringXY(label,centered_x(label),150);
 }
 
 static void drawHelp(void) {
-    gfx_SetTextScale(2,2);
-    gfx_SetTextFGColor(TXT);
-    gfx_SetTextBGColor(BG);
-    gfx_PrintStringXY("HELP",130,10);
+    drawTitle("HELP");
 
     gfx_SetTextScale(1,1);
-    gfx_PrintStringXY("1-6: set die",10,50);
-    gfx_PrintStringXY("<>: select die",10,60);
-    gfx_PrintStringXY("^: attacker #",10,70);
-    gfx_PrintStringXY("v: defender #",10,80);
-    gfx_PrintStringXY("ENTER: calc",10,90); // ENTER (G6)
-    gfx_PrintStringXY("ALPHA: show help",10,100); // ALPHA (G2)
-    gfx_PrintStringXY("CLEAR: exit",10,110); // CLEAR (G6)
-    gfx_PrintStringXY("ENTER: back",10,200); // ENTER (G6)
+    char* labels[] = {
+        "1-6: set die",
+        "<>: select die",
+        "^: attacker #",
+        "v: defender #",
+        "ENTER: calc",
+        "ALPHA: show help",
+        "CLEAR: exit"
+    };
+
+    uint24_t height = 70;
+    for (uint24_t i = 0; i < sizeof(labels) / sizeof(labels[0]); i++) {
+        gfx_PrintStringXY(labels[i],10,height);
+        height += 10;
+    }
+
+    gfx_PrintStringXY("ENTER Back", 5, H-8);
 }
 
-static void drawDice(int x, int y, int v, int c, bool sel) {
+static void drawDice(uint24_t x, uint24_t y, uint24_t v, uint24_t c, bool sel) {
     if (x<0||x+DICE_SZ>W||y<0||y+DICE_SZ>H) return;
     if (sel) {
         gfx_SetColor(HLT_COL);
@@ -224,7 +235,7 @@ static void drawDice(int x, int y, int v, int c, bool sel) {
     gfx_Rectangle(x,y,DICE_SZ,DICE_SZ);
 
     if (v>0) {
-        int cx=x+DICE_SZ/2, cy=y+DICE_SZ/2;
+        uint24_t cx=x+DICE_SZ/2, cy=y+DICE_SZ/2;
         if (v%2) gfx_FillCircle(cx,cy,4); // Center pip for 1, 3, 5
         if (v>=2) { // Top-left, bottom-right for 2, 3, 4, 5, 6
             gfx_FillCircle(x+10,y+10,4);
@@ -241,9 +252,9 @@ static void drawDice(int x, int y, int v, int c, bool sel) {
     }
 }
 
-static void sortDesc(int *d, int n) {
-    for (int i = 0; i < n - 1; i++) {
-        for (int j = i + 1; j < n; j++) {
+static void sortDesc(uint24_t *d, uint24_t n) {
+    for (uint24_t i = 0; i < n - 1; i++) {
+        for (uint24_t j = i + 1; j < n; j++) {
             if (d[j] > d[i]) {
                 int t = d[i]; d[i] = d[j]; d[j] = t;
             }
@@ -251,11 +262,11 @@ static void sortDesc(int *d, int n) {
     }
 }
 
-static void calcBattle(int *a, int ac, int *d, int dc, int *al, int *dl) {
+static void calcBattle(uint24_t *a, uint24_t ac, uint24_t *d, uint24_t dc, uint24_t *al, uint24_t *dl) {
     sortDesc(a, ac);
     sortDesc(d, dc);
     *al = 0; *dl = 0;
-    for (int i = 0; i < (ac < dc ? ac : dc); i++) { // Iterate up to the minimum number of dice on either side
+    for (uint24_t i = 0; i < (ac < dc ? ac : dc); i++) { // Iterate up to the minimum number of dice on either side
         if (a[i] > d[i]) (*dl)++;
         else (*al)++;
     }

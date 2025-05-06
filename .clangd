@@ -1,6 +1,7 @@
 CompileFlags:
   Add:
     - "-I/Users/thomas/.ce/include"
+    - "-I/Users/thomas/risk_ce/inc"
     - "-D__ENABLE_LEGACY_BIFROST=1"
     - "-DPLATFORM_TI84PCE"
     - "-D__int24=int"
